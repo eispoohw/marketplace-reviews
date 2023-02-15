@@ -71,22 +71,24 @@ class WildberriesReviewsParser(Parser, ABC):
         df = pd.DataFrame()
         # author | country |  rate | text | date | upvote | downvote | param_... | photos_count | photo_...
         for i, comment in tqdm(enumerate(comments)):
-            df.loc[i, 'author'] = comment.find(class_="feedback__header").text
-            df.loc[i, 'country'] = comment.find(class_="feedback__country").get("class")[1][5:]
-            df.loc[i, 'rate'] = comment.find(class_="stars-line").get("class")[2][-1]
-            df.loc[i, 'text'] = str(comment.find(class_="feedback__text").text)
-            df.loc[i, 'date'] = self.__convert_datetime(comment.find(class_="feedback__date").text)
+            row = pd.DataFrame()
+            row['author'] = comment.find(class_="feedback__header").text,
+            row['country'] = comment.find(class_="feedback__country").get("class")[1][5:],
+            row['rate'] = comment.find(class_="stars-line").get("class")[2][-1],
+            row['text'] = str(comment.find(class_="feedback__text").text),
+            row['date'] = self.__convert_datetime(comment.find(class_="feedback__date").text)
             votes = comment.find(class_="vote__wrap").find_all('span')
-            df.loc[i, 'upvote'], df.loc[i, 'downvote'] = votes[0].text, votes[1].text
+            row['upvote'], row['downvote'] = votes[0].text, votes[1].text
             for param in comment.find_all(class_="feedback__params-item"):
                 spans = param.find_all('span')
                 name = spans[0].text[:-1]
                 for i, value in enumerate(spans[1:]):
-                    df.loc[i, f"param_{name}_{i}"] = value.text
-            photos = comment.find_all(class_="j-feedback-photo")
-            df.loc[i, 'photos_count'] = len(photos)
+                    row[f"param_{name}_{i}"] = value.text
+            photos = comment.find(class_="feedback__photos").find_all('img')
+            row['photos_count'] = len(photos)
             for idx_photo, photo in enumerate(photos):
-                df.loc[i, f"photo_{idx_photo}"] = photo.get('src')
+                row[f"photo_{idx_photo}"] = photo.get('src')
+            df = pd.concat([df, row])
         filename = pathlib.Path(filename)
         newname = filename.parent / f"{filename.stem}.csv"
         df.to_csv(newname, index=False)
