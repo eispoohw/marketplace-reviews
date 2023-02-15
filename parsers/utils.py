@@ -4,6 +4,7 @@ from tqdm import tqdm
 
 
 def scroll_page_generator(driver, scroll_pause_time):
+    waited = False
     last_height = driver.execute_script("return document.body.scrollHeight")
     while True:
         # Scroll down to bottom
@@ -13,7 +14,10 @@ def scroll_page_generator(driver, scroll_pause_time):
         # Calculate new scroll height and compare with last scroll height
         new_height = driver.execute_script("return document.body.scrollHeight")
         if new_height == last_height:
-            break
+            if waited:
+                break
+            else:
+                waited = True
         last_height = new_height
         yield
 
