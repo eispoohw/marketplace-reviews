@@ -1,17 +1,17 @@
+import datetime
 import math
 import re
 import time
+import warnings
 from abc import ABC
 
 import pandas as pd
-import warnings
-
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from tqdm import tqdm
 
 from .ABCParser import Parser
-from .utils import get_str_from_html, change_html_path_to_csv
+from .utils import MONTHS, change_html_path_to_csv, get_str_from_html
 
 APPROX_COMMENTS_PER_PAGE = 60
 STRIP_CHARS = '\n\t  '
@@ -49,18 +49,44 @@ class OzonParser(Parser, ABC):
 
         df = pd.DataFrame()
         for comment in tqdm(comments):
-            c_df = {'author': comment.find(class_="s7s").text.strip(STRIP_CHARS)}
+            divs = comment.findChildren("div", recursive=False)
+            c_df = {
+                'author': divs[0].find("div").findChildren("div", recursive=False)[1].find("div").text.strip(
+                    STRIP_CHARS),
+                'date': self.__convert_date(divs[0].findChildren("div", recursive=False)[-1].find("div").text)
+            }
             """
             Product features 
                 such as colour and size
             """
-            features = comment.find(class_="s2w")
+            comment_body = divs[1].findChildren("div", recursive=False)
+            features = comment_body[0].find('a')
             if features:
-                features = features.find('a').text.split(', ')
+                features = features.text.split(', ')
                 for feat in features:
                     name, value = feat.split(': ')
                     name = name.replace(' ', "_").strip(STRIP_CHARS).lower()
                     c_df[name] = value.strip(STRIP_CHARS)
+            """
+            Comment
+                Each is divided into sections:
+                
+                div : Section
+                    div : section name
+                    div span : section text
+                    
+                For example, "Достоинства": "...". Sometimes there is only one section without name.
+                It should be called "Комментарий"
+            """
+            sections = comment_body[1].findChildren("div", recursive=False)
+            for section in sections:
+                rows = section.findChildren("div", recursive=False)
+                if len(rows) == 2:
+                    name = rows[0].text.strip(STRIP_CHARS).lower()
+                else:
+                    name = "комментарий"
+                value = rows[-1].text.strip(STRIP_CHARS)
+                c_df[name] = value
             """
             Rating
                 rate is showed by <div class="aa5-a6" style="width:100%;"></div>
@@ -69,32 +95,6 @@ class OzonParser(Parser, ABC):
             stars = comment.find(class_="aa5-a6")
             stars_num = int(stars.get('style')[6:-2]) / 20
             c_df['rate'] = stars_num
-            """ 
-            Recommendation
-                True / False / None - "Рекомендую/Не рекомендую"
-            """
-            recommendation = comment.find('sv8')
-            if recommendation:
-                c_df['recommendation'] = True if recommendation.text == 'Рекомендую' else False
-            """
-            Comment
-                Each is divided into sections:
-                
-                div.s7v : Section
-                    div.sv7 : section name
-                    div span.v6s : section text
-                    
-                For example, "Достоинства": "...". Sometimes there is only one section without name.
-                It should be called "Комментарий"
-            """
-            sections = comment.find_all(class_="s7v")
-            for section in sections:
-                try:
-                    name = section.find(class_="sv7").text.strip(STRIP_CHARS).lower()
-                except AttributeError:
-                    name = "комментарий"
-                value = section.find(class_="v6s").text.strip(STRIP_CHARS)
-                c_df[name] = value.strip(STRIP_CHARS)
             """
             Upvotes and downvotes
                 They are span._4-e3 with values such as "Да 0"/"Нет 5"
@@ -103,9 +103,9 @@ class OzonParser(Parser, ABC):
             c_df['upvote'] = int(votes[0].text.strip(STRIP_CHARS)[3:])
             c_df['downvote'] = int(votes[1].text.strip(STRIP_CHARS)[4:])
             df = df.append(c_df, ignore_index=True)
-        if not newname:
+        if newname:
             newname = change_html_path_to_csv(filename)
-        df.to_csv(newname, index=False)
+            df.to_csv(newname, index=False)
         print('Done! Data saved to', newname)
         return df
 
@@ -121,10 +121,8 @@ class OzonParser(Parser, ABC):
         print('\nCollecting data ...')
         file = open(filename, "w", encoding="utf-8")
         page = 1
-        self.__get_reviews_page(page)
-        max_pages = math.ceil(int(self.driver.title.split(" ")[0]) / APPROX_COMMENTS_PER_PAGE)
-        print('Approximate number of pages', max_pages)
         while True:
+            self.__get_reviews_page(page)
             review_div = self.driver.find_element(By.XPATH, "//div[@data-widget='webListReviews']")
             data = review_div.get_attribute('innerHTML')
             soup = BeautifulSoup(data, 'lxml')
@@ -132,9 +130,17 @@ class OzonParser(Parser, ABC):
                 print(page, end=" ")
                 file.write(data)
                 page += 1
-                self.__get_reviews_page(page)
             else:
-                print(f"\nCompleted! Actual number of pages is {page - 1}")
-                print(f'Data collected and stored in \"{filename}\"\n')
+                print(f'\nCompleted! Data collected and stored in \"{filename}\"\n')
                 file.close()
                 break
+
+    @staticmethod
+    def __convert_date(given: str) -> datetime.date:
+        edited = given.rfind("изменен ")
+        if edited != -1:
+            given = given[8:]
+        year = int(given[-4:])
+        day, month = given[:given.rfind(" ") - 1].split(" ")
+        month = MONTHS[month.lower()]
+        return datetime.date(year, int(month), int(day))
