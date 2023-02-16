@@ -1,7 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import pandas as pd
 import undetected_chromedriver as uc
@@ -29,7 +29,7 @@ class Parser(ABC):
         time.sleep(2)
 
     @abstractmethod
-    def convert_html_to_csv(self, filename: Union[str, Path]) -> pd.DataFrame:
+    def convert_html_to_csv(self, filename: Union[str, Path], newname: Optional[Union[str, Path]]) -> pd.DataFrame:
         """
         Convert collected html data to csv and DataFrame according to selected marketplace.
         """
