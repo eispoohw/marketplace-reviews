@@ -1,5 +1,4 @@
 import datetime
-import math
 import re
 import time
 import warnings
@@ -36,7 +35,6 @@ class OzonParser(Parser, ABC):
             | (object ) author - comment author's name
             | (object ) {feature_i} - product feature
             | (int64  ) rate - product rating from 1 to 5
-            | (boolean) recommendation - product rating from 1 to 5
             | (object ) {comment_i} - review text
             | (object) date - date of the comment
             | (int64 ) upvote - likes to a comment from other users
