@@ -9,7 +9,8 @@ from selenium.webdriver.common.by import By
 from tqdm import tqdm
 
 from .ABCParser import Parser
-from .utils import change_html_path_to_csv, get_str_from_html, scroll_page
+from .utils import (MONTHS, change_html_path_to_csv, get_str_from_html,
+                    scroll_page)
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -101,13 +102,8 @@ class WildberriesParser(Parser, ABC):
             yesterday = datetime.now() - timedelta(days=1)
             return datetime(yesterday.year, yesterday.month, yesterday.day, hour, minute)
         else:
-            months = {
-                'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04',
-                'мая': '05', 'июня': '06', 'июля': '07', 'августа': '08',
-                'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12'
-            }
             date_list = date.split(' ')
             if len(date_list) != 3:
                 date_list.append(str(datetime.now().year))
-            date_list[1] = months[date_list[1]]
+            date_list[1] = MONTHS[date_list[1]]
             return datetime.strptime(" ".join(date_list) + ', ' + times, "%d %m %Y, %H:%M")

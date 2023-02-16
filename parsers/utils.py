@@ -49,3 +49,10 @@ def change_html_path_to_csv(filename: Union[str, Path]):
     if type(filename) == str:
         filename = Path(filename)
     return filename.parent / f"{filename.stem}.csv"
+
+
+MONTHS = {
+    'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04',
+    'мая': '05', 'июня': '06', 'июля': '07', 'августа': '08',
+    'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12'
+}
