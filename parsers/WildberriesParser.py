@@ -22,21 +22,21 @@ class WildberriesParser(Parser, ABC):
         print(f'Data collected and stored in \"{filename}\"')
         self.driver.quit()
 
-    def convert_html_to_csv(self, filename, newname) -> pd.DataFrame:
+    def convert_html_to_csv(self, filename, newname=None) -> pd.DataFrame:
         """
         Convert collected comments to DataFrame and save it in {filename}.csv or newname if specified.
 
         DataFrame columns:
-            | (object) author - comment author's name
-            | (object) country - their country
-            | (int64 ) rate - product rating from 1 to 5
-            | (object) text - review text
-            | (object) date - date of the comment
-            | (int64 ) upvote - likes to a comment from other users
-            | (int64 ) downvote - dislikes to a comment from other users
-            | (object) param_{i} - the i-th parameter of the product (e.g. colour)
-            | (object) photos_count - number of photos left
-            | (object) photo_{i} - link to the i-th photo
+            | (object  ) author - comment author's name
+            | (object  ) country - their country
+            | (int64   ) rate - product rating from 1 to 5
+            | (object  ) text - review text
+            | (datetime) date - date of the comment
+            | (int64   ) upvote - likes to a comment from other users
+            | (int64   ) downvote - dislikes to a comment from other users
+            | (object  ) param_{i} - the i-th parameter of the product (e.g. colour)
+            | (object  ) photos_count - number of photos left
+            | (object  ) photo_{i} - link to the i-th photo
         """
         raw = get_str_from_html(filename)
         soup = BeautifulSoup(raw, "lxml")
@@ -45,14 +45,13 @@ class WildberriesParser(Parser, ABC):
 
         df = pd.DataFrame()
         for comment in tqdm(comments):
-            c_df = pd.DataFrame()
-            c_df['author'] = comment.find(class_="feedback__header").text
-            c_df['country'] = comment.find(class_="feedback__country").get("class")[1][5:]
-            c_df['rate'] = comment.find(class_="stars-line").get("class")[2][-1]
-            c_df['text'] = str(comment.find(class_="feedback__text").text)
-            c_df['date'] = self.__convert_datetime(comment.find(class_="feedback__date").text)
+            c_df = {'author': comment.find(class_="feedback__header").text,
+                    'country': comment.find(class_="feedback__country").get("class")[1][5:],
+                    'rate': int(comment.find(class_="stars-line").get("class")[2][-1]),
+                    'text': str(comment.find(class_="feedback__text").text),
+                    'date': self.__convert_datetime(comment.find(class_="feedback__date").text)}
             votes = comment.find(class_="vote__wrap").find_all('span')
-            c_df['upvote'], c_df['downvote'] = votes[0].text, votes[1].text
+            c_df['upvote'], c_df['downvote'] = int(votes[0].text), int(votes[1].text)
             for param in comment.find_all(class_="feedback__params-item"):
                 spans = param.find_all('span')
                 name = spans[0].text[:-1]
